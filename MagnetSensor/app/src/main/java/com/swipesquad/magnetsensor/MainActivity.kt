@@ -1,5 +1,6 @@
 package com.swipesquad.magnetsensor
 
+import android.R
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -12,9 +13,14 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,7 +36,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.swipesquad.magnetsensor.ui.theme.MagnetSensorTheme
 import org.json.JSONObject
@@ -134,10 +143,25 @@ fun LogbookButton(modifier: Modifier) {
         }
     }
 }
+@Composable
+fun FlatProgressBar(progress: Float, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .height(24.dp)
+            .background(Color.Gray)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(progress)
+                .background(Color(0xFF6200EE)) // Your progress color
+        )
+    }
+}
+
 
 @Composable
 fun MagneticFieldBar(fieldStrength: Float, modifier: Modifier = Modifier) {
-    // Typical Earth's field is 25-65 µT, so let's map 0–100µT to 0–100%
     val maxField = 100f
     val progress = (fieldStrength / maxField).coerceIn(0f, 1f)
 
@@ -147,16 +171,22 @@ fun MagneticFieldBar(fieldStrength: Float, modifier: Modifier = Modifier) {
     ) {
         Text(text = "Magnetic Field Strength")
         Spacer(modifier = Modifier.height(16.dp))
-        LinearProgressIndicator(
-            progress = { progress },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(24.dp),
-            color = ProgressIndicatorDefaults.linearColor,
-            trackColor = ProgressIndicatorDefaults.linearTrackColor,
-            strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
-        )
+        FlatProgressBar(
+           progress = progress,
+           modifier = Modifier
+               .fillMaxWidth()
+               .height(12.dp),
+       )
         Spacer(modifier = Modifier.height(8.dp))
         Text(text = "%.1f µT (%.0f%%)".format(fieldStrength, progress * 100))
+        Text(text = "Mesured in nano Tesla µT")
     }
+}
+
+
+//Used for Testing
+@Preview
+@Composable
+fun Funky() {
+    MagneticFieldBar(5f, Modifier.fillMaxWidth())
 }
