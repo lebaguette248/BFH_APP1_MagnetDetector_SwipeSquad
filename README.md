@@ -1,0 +1,1 @@
+# BFH_APP1_MagnetDetector_SwipeSquad
