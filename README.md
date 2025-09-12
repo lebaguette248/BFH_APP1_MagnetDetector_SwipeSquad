@@ -24,6 +24,9 @@ The app uses the magnetic field sensor (`Sensor.TYPE_MAGNETIC_FIELD`) to read X,
 ```
 Magnetic Field Strength
 [█████████████-----------] 57%
+
+5.0 µT (5%)
+Mesured in nano Tesla µT
 ```
 
 ## Notes
