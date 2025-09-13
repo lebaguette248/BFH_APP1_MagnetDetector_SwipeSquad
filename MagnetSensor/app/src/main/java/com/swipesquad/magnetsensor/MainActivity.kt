@@ -270,7 +270,7 @@ fun FlatProgressBar(progress: Float, modifier: Modifier = Modifier) {
             modifier = Modifier
                 .fillMaxHeight()
                 .fillMaxWidth(progress)
-                .background(Color(0xFF6200EE)) // Your progress color
+                .background(Color(R.color.blue_700)) // Your progress color
         )
     }
 }
