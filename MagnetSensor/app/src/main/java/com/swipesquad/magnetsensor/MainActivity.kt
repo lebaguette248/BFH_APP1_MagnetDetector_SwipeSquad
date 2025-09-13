@@ -1,11 +1,14 @@
-package com.swipesquad.magnetsensor
+package com.swipesquad
 
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -16,9 +19,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.swipesquad.magnetsensor.ui.theme.MagnetSensorTheme
+import org.json.JSONObject
 import kotlin.math.sqrt
 
 class MainActivity : ComponentActivity(), SensorEventListener {
@@ -85,6 +90,42 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+}
+
+
+fun sendLogbookIntent(context: Context) {
+    val log = JSONObject()
+    log.put("task", "Metalldetektor")
+    log.put("solution", "Test")
+
+    val intent = Intent("ch.apprun.intent.LOG").apply {
+        putExtra("ch.apprun.logmessage", log.toString())
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+    }
+
+    try {
+        context.startActivity(intent)
+    } catch (_: ActivityNotFoundException) {
+        Log.e("Logger", "LogBook application is not installed on this device.")
+    }
+}
+
+@Composable
+fun LogbookButton(modifier: Modifier) {
+    val context = LocalContext.current
+
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Button(
+            onClick = {
+                sendLogbookIntent(context)
+            }
+        ) {
+            Text("Test Intent")
+        }
+    }
 }
 
 @Composable
