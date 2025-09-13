@@ -9,9 +9,12 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -31,6 +34,32 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     private var magneticSensor: Sensor? = null
 
     private var _fieldStrength by mutableStateOf(0f)
+
+    private var qrCodeResultValue: String? = null
+
+    private val qrLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val data: Intent? = result.data
+            val imageUri = data?.getStringExtra("image_uri")
+            val qrCodeValue = data?.getStringExtra("qr_code_value")
+
+            qrCodeResultValue = qrCodeValue
+            Toast.makeText(this, "QR: $qrCodeValue", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private val cameraPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // Launch the QR camera activity
+            qrLauncher.launch(Intent(this, CameraActivity::class.java))
+        } else {
+            Toast.makeText(this, "Camera permission denied", Toast.LENGTH_SHORT).show()
+        }
+    }
     val fieldStrength: Float
         get() = _fieldStrength
 
@@ -45,6 +74,10 @@ class MainActivity : ComponentActivity(), SensorEventListener {
             MagnetSensorTheme {
                 // Sensitivity state, default 100µT, range 20–200µT
                 var maxField by remember { mutableStateOf(100f) }
+                //Value check popup before sending logbook intent
+                var showDialog by remember { mutableStateOf(false) }
+                val context = LocalContext.current
+
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Column(
                         modifier = Modifier
@@ -65,10 +98,31 @@ class MainActivity : ComponentActivity(), SensorEventListener {
                             onValueChange = { maxField = it }
                         )
                         Spacer(modifier = Modifier.height(32.dp))
+                        Text(
+                            text = qrCodeResultValue?.let { "QR Code Value: $it" } ?: "No QR code scanned yet"
+                        )
                         LogbookButton(
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { showDialog = true }
+                        )
+                        QRCodeButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            qrLauncher = qrLauncher,
+                            requestCameraPermission = {
+                                cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                            }
                         )
                     }
+                }
+                if (showDialog) {
+                    InputPopup(
+                        title = "Is this value correct?",
+                        onDismiss = { showDialog = false },
+                        onConfirm = { input ->
+                            sendLogbookIntent(context, input)
+                        },
+                        initialText = qrCodeResultValue ?: "No QR Code scanned yet..."
+                    )
                 }
             }
         }
@@ -97,10 +151,10 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 }
 
 
-fun sendLogbookIntent(context: Context) {
+fun sendLogbookIntent(context: Context, value: String) {
     val log = JSONObject()
     log.put("task", "Metalldetektor")
-    log.put("solution", "Test")
+    log.put("solution", value)
 
     val intent = Intent("ch.apprun.intent.LOG").apply {
         putExtra("ch.apprun.logmessage", log.toString())
@@ -115,21 +169,74 @@ fun sendLogbookIntent(context: Context) {
 }
 
 @Composable
-fun LogbookButton(modifier: Modifier) {
-    val context = LocalContext.current
-
+fun LogbookButton(modifier: Modifier, onClick: () -> Unit) {
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.Center
     ) {
         Button(
-            onClick = {
-                sendLogbookIntent(context)
-            }
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Test Intent")
+            Text("Send to Logbook")
         }
     }
+}
+
+@Composable
+fun QRCodeButton(
+    modifier: Modifier,
+    qrLauncher: ActivityResultLauncher<Intent>,
+    requestCameraPermission: () -> Unit
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Button(
+            onClick = { requestCameraPermission() },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Scan QR Code")
+        }
+    }
+}
+
+@Composable
+fun InputPopup(
+    title: String = "Enter value",
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+    initialText: String
+) {
+    var text by remember { mutableStateOf(initialText) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = title) },
+        text = {
+            TextField(
+                value = text,
+                onValueChange = { text = it },
+                placeholder = { Text("Type something...") }
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onConfirm(text)
+                    onDismiss()
+                }
+            ) {
+                Text("OK")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable
