@@ -1,48 +1,24 @@
 package com.swipesquad.magnetsensor
 
-import android.R
-import android.content.ActivityNotFoundException
 import android.content.Context
-import android.content.Intent
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ProgressIndicatorDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.swipesquad.magnetsensor.ui.theme.MagnetSensorTheme
-import org.json.JSONObject
 import kotlin.math.sqrt
 
 class MainActivity : ComponentActivity(), SensorEventListener {
@@ -57,29 +33,31 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         magneticSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
 
         setContent {
             MagnetSensorTheme {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize()
-                ) { innerPadding ->
+                // Sensitivity state, default 100µT, range 20–200µT
+                var maxField by remember { mutableStateOf(100f) }
+                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Column(
                         modifier = Modifier
                             .padding(innerPadding)
-                            .fillMaxSize()
+                            .fillMaxWidth()
                             .padding(32.dp),
-                        verticalArrangement = Arrangement.SpaceBetween, // distributes items vertically
+                        verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         MagneticFieldBar(
                             fieldStrength = fieldStrength,
+                            maxField = maxField,
                             modifier = Modifier.fillMaxWidth()
                         )
-
-                        LogbookButton(
-                            modifier = Modifier.fillMaxWidth()
+                        Spacer(modifier = Modifier.height(32.dp))
+                        SensitivitySlider(
+                            maxField = maxField,
+                            onValueChange = { maxField = it }
                         )
                     }
                 }
@@ -109,45 +87,31 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 }
 
-fun sendLogbookIntent(context: Context) {
-    val log = JSONObject()
-    log.put("task", "Metalldetektor")
-    log.put("solution", "Test")
-
-    val intent = Intent("ch.apprun.intent.LOG").apply {
-        putExtra("ch.apprun.logmessage", log.toString())
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK
-    }
-
-    try {
-        context.startActivity(intent)
-    } catch (_: ActivityNotFoundException) {
-        Log.e("Logger", "LogBook application is not installed on this device.")
-    }
-}
-
 @Composable
-fun LogbookButton(modifier: Modifier) {
-    val context = LocalContext.current
+fun MagneticFieldBar(fieldStrength: Float, maxField: Float, modifier: Modifier = Modifier) {
+    val progress = (fieldStrength / maxField).coerceIn(0f, 1f)
 
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.Center
     ) {
-        Button(
-            onClick = {
-                sendLogbookIntent(context)
-            }
-        ) {
-            Text("Test Intent")
-        }
+        Text(text = "Magnetic Field Strength")
+        Spacer(modifier = Modifier.height(16.dp))
+        FlatProgressBar(
+            progress = progress,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = "%.1f µT (%.0f%% of max %.0f µT)".format(fieldStrength, progress * 100, maxField))
     }
 }
+
 @Composable
 fun FlatProgressBar(progress: Float, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .height(24.dp)
             .background(Color.Gray)
     ) {
         Box(
@@ -159,34 +123,53 @@ fun FlatProgressBar(progress: Float, modifier: Modifier = Modifier) {
     }
 }
 
-
 @Composable
-fun MagneticFieldBar(fieldStrength: Float, modifier: Modifier = Modifier) {
-    val maxField = 100f
-    val progress = (fieldStrength / maxField).coerceIn(0f, 1f)
-
+fun SensitivitySlider(
+    maxField: Float,
+    onValueChange: (Float) -> Unit,
+    minField: Float = 20f,
+    maxFieldLimit: Float = 5000f
+) {
     Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = "Magnetic Field Strength")
-        Spacer(modifier = Modifier.height(16.dp))
-        FlatProgressBar(
-           progress = progress,
-           modifier = Modifier
-               .fillMaxWidth()
-               .height(12.dp),
-       )
+        Text(text = "Sensitivity (max µT for 100%)")
         Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "%.1f µT (%.0f%%)".format(fieldStrength, progress * 100))
-        Text(text = "Mesured in nano Tesla µT")
+        Slider(
+            value = maxField,
+            onValueChange = onValueChange,
+            valueRange = minField..maxFieldLimit,
+            steps = 20
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = "Current max: ${maxField.toInt()} µT")
     }
 }
 
-
-//Used for Testing
-@Preview
+@Preview(showBackground = true, name = "MagneticFieldBar - 60% at 60µT of 100µT")
 @Composable
-fun Funky() {
-    MagneticFieldBar(5f, Modifier.fillMaxWidth())
+fun PreviewMagneticFieldBar() {
+    MagnetSensorTheme {
+        MagneticFieldBar(
+            fieldStrength = 60f,
+            maxField = 100f,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp)
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "SensitivitySlider - 100µT")
+@Composable
+fun PreviewSensitivitySlider() {
+    MagnetSensorTheme {
+        SensitivitySlider(
+            maxField = 100f,
+            onValueChange = {},
+            minField = 20f,
+            maxFieldLimit = 200f
+        )
+    }
 }
