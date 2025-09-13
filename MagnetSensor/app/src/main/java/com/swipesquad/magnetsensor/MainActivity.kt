@@ -1,4 +1,4 @@
-package com.swipesquad
+package com.swipesquad.magnetsensor
 
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         magneticSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
 
         setContent {
@@ -63,6 +63,10 @@ class MainActivity : ComponentActivity(), SensorEventListener {
                         SensitivitySlider(
                             maxField = maxField,
                             onValueChange = { maxField = it }
+                        )
+                        Spacer(modifier = Modifier.height(32.dp))
+                        LogbookButton(
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
